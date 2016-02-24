@@ -15,15 +15,15 @@ $ omf install es
 
 ## Requirements
 * Latest fish version with a builtin `string` function (above `2.2.0`, so please get the latest version from  `HEAD`)
-* Powerline-patched font
+* A font patched with additional glyphs: [Powerline](https://github.com/powerline/fonts), [Octicons](https://octicons.github.com/) and [Devicons](https://vorillaz.github.io/devicons/#/main) at their default codepoints (Powerline `E0A0-E0B3`, Octicons `F000-F0E8`, Devicons `E600-E6C5`). You can patch any font yourself with [FontForge](https://fontforge.github.io/en-US/)+[Font patcher](https://github.com/eugenesvk/nerd-fonts/blob/master/font-patcher)
 
 ## Features
 
 * Git-aware theme with detailed __Git status__ in the left prompt (added, removed, modified, renamed, unstaged, stashed)
-* __Node/Python/Ruby@gemset__ current version inside a git folder in the right prompt if respective virtual environment manager is installed (nvm, pyenv, rbenv)
+* __Node/Python/Ruby@gemset__ current version (local/global in a git folder, only local elsewhere) in the right prompt if respective virtual environment manager is installed (nvm, pyenv, rbenv/RVM)
 * __Error status__ and __duration of last command__ in the right prompt
 * Mac-notifications on completion of long commands (10+&nbsp;seconds by default) if terminal (iTerm and Terminal) is out of focus
-* Limits path to __two last folders__ for better visibility, with `$HOME` directory abbreviated to `~`
+* Limits path to __last two folders__ for better visibility, with `$HOME` directory abbreviated to `~`
 
 ## Screenshot
 

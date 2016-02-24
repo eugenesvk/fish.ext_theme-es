@@ -37,15 +37,16 @@ function fish_right_prompt
     set jobsp $ICON_JOBS
   end
   echo -n -s "$errorp$duration$jobsp"                                #show error code, command duration and jobs status
-  if _is_git_folder                                                  #show  only if in a git folder
+  if _is_git_folder                                                  #show git sha and  in a git folder
   #command git rev-parse --is-inside-work-tree 1>/dev/null 2>/dev/null
     set git_sha (_git_prompt_short_sha)                              #git short sha
     set NODEp   (_node_version)                                      #Node.js version
-    set PYTHONp (_python_version)                                    #Python version
-    set RUBYp   (_ruby_version)                                      #Ruby prompt @ gemset
-    echo -n -s "$git_sha$NODEp$PYTHONp$RUBYp"                        # -n no newline -s no space separation
+    echo -n -s "$git_sha$NODEp"                                      # -n no newline -s no space separation
   end
-  echo -n -s (_prompt_user)                                          #display user@host if different from default or SSH
+  set PYTHONp (_python_version)                                      #Python version
+  set RUBYp   (_ruby_version)                                        #Ruby prompt @ gemset
+  echo -n -s "$PYTHONp$RUBYp"      #show global  versions in a git folder or local anywhere
+  echo -n -s (_prompt_user)        #display user@host if different from default or SSH
 end
 
 function _cmd_duration -d 'Displays the elapsed time of last command and show notification for long lasting commands'
@@ -89,11 +90,6 @@ function _cmd_duration -d 'Displays the elapsed time of last command and show no
     end
     end
   end
-end
-
-function available -a name -d "Check if a function or program is available."
-  #-a NAMES assigns the value of successive command-line arguments to the names given in NAMES
-  type "$name" ^/dev/null >&2
 end
 
 function _col                                     #Set Color 'name b u' bold, underline
@@ -263,11 +259,11 @@ end
 
 function _node_version -d "Get the currently used node version if NVM exists"
   set -l node_version
-  available nvm; and set node_version (string trim -l -c=v (node -v 2>/dev/null)) # trimmed lef 'v'; can use 'nvm current', but slower
+  type -q nvm; and set node_version (string trim -l -c=v (node -v 2>/dev/null)) # trimmed left 'v'; can use 'nvm current', but slower
   test $node_version; and echo -n -s (_col brgreen)$ICON_NODE(_col green)$node_version(_col_res)
 end
 
-function _ruby_version -d "Get RVM or rbenv version and output" #^&1 stderr2stdout, >&2 vice versa, '>' stdout, '2>' stderr
+function _ruby_version -d "Print Ruby version via RVM/rbenv: local/global in a git folder, only local elsewhere"
   set -l ruby_ver
   if which rvm-prompt >/dev/null ^&1
     set ruby_ver (rvm-prompt i v g)
@@ -276,15 +272,16 @@ function _ruby_version -d "Get RVM or rbenv version and output" #^&1 stderr2stdo
       set ruby_ver (rbenv version-name)
     end
   end
-  if test -n (_rbenv_gemset 2>/dev/null; or echo "")
-    test $ruby_ver; and echo -n -s (_col brred)$ICON_RUBY(_col green)$ruby_ver(_col grey)"@"(_col brgrey)(_rbenv_gemset)(_col_res)
-  else
-    test $ruby_ver; and echo -n -s (_col brred)$ICON_RUBY(_col green)$ruby_ver(_col_res)
+  if begin _is_git_folder; or _is_ruby_local; end
+    if test -n (_rbenv_gemset 2>/dev/null; or echo "")
+      test $ruby_ver; and echo -n -s (_col brred)$ICON_RUBY(_col green)$ruby_ver(_col grey)"@"(_col brgrey)(_rbenv_gemset)(_col_res)
+    else
+      test $ruby_ver; and echo -n -s (_col brred)$ICON_RUBY(_col green)$ruby_ver(_col_res)
+    end
   end
 end
-
 function _rbenv_gemset -d "Get main current gemset name"
-  if available rbenv
+  if type -q rbenv
     if test (rbenv gemset active 2>/dev/null)                           #redirects stderr to /null
       set -l active_gemset (string split -m1 " " (rbenv gemset active))
       echo -n -s $active_gemset[1]
@@ -295,13 +292,20 @@ function _rbenv_gemset -d "Get main current gemset name"
     echo ''
   end
 end
-
-function _python_version -d "Get python version if pyenv is installed"
-  set -l python_version
-  if which pyenv >/dev/null ^&1
-    set python_version (pyenv version-name)
+function _is_ruby_local -d "Check if local ruby version is set via .ruby-version (current/parent folders)"
+  if type -q rbenv
+    rbenv version | grep '.ruby-version' >/dev/null
   end
+end
+
+function _python_version -d "Print Python version via pyenv: local/global in a git folder, only local elsewhere"
+  set -l python_version
+  _is_git_folder; or _is_python_local; and type -q pyenv
+  and set python_version (pyenv version-name)
   test $python_version; and echo -n -s (_col brblue)$ICON_PYTHON(_col green)$python_version(_col_res)
+end
+function _is_python_local -d "Check if local python version is set via .python-version (current/parent folders)"
+  pyenv version | grep '.python-version' >/dev/null
 end
 
 function _icons_initialize
@@ -345,6 +349,7 @@ end
 set -g CMD_DURATION 0
 
 #Additional info
+  # ^&1 stderr2stdout, >&2 vice versa, '>' or '1>' stdout, '2>' stderr
   #set -l time (date '+%I:%M'); #set -l time_info (_col blue)($time)(_col_res); #echo -n -s $time_info
   #function print_blank_line() {
   #    if git rev-parse --git-dir > /dev/null 2>&1
