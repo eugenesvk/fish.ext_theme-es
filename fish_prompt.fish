@@ -1,16 +1,11 @@
-# Global variables that affect how left and right prompts look like
-set -g theme_es_symbols_style              'symbols'
-set -g theme_es_display_git_ahead_verbose  yes
-set -g theme_es_hide_hostname              no
-set -g theme_es_display_user               no
-
 function fish_prompt
   set -g last_status $status                                         #exit status of last command
   #set -l count (_file_count)
-  _icons_initialize
+  _icons_initialize                                                  # assign icons from patched fonts to vars
+  _set_theme_es_vars                                                 # set theme vars if not set by user
   set -l p_path2 (_col brblue o u)(prompt_pwd2)(_col_res)            #path shortened to last two folders ($count)
   set -l symbols ''                                                  #add some pre-path symbols
-  if [ $theme_es_symbols_style = 'symbols' ]
+  if [ $theme_es_show_symbols = 'yes' ]
     if [ ! -w . ];    set symbols $symbols(_col ff6600)$ICON_LOCK; end    #
     if set -q -x VIM; set symbols $symbols(_col 3300ff o)$ICON_VIM; end   #
   end
@@ -37,14 +32,24 @@ function fish_right_prompt
   echo -n -s "$errorp$duration$jobsp"                                # show error code, command duration and jobs status
   if _is_git_folder                                                  # show git sha and  in a git folder
   #command git rev-parse --is-inside-work-tree 1>/dev/null 2>/dev/null
-    set git_sha (_git_prompt_short_sha)                              # git short sha
-    echo -n -s "$git_sha"                                            # -n no newline -s no space separation
+    set git_SHAp (_git_prompt_sha)                                    # git long/short sha depending on config
+    echo -n -s "$git_SHAp"                                            # -n no newline -s no space separation
   end
   set NODEp   (_node_version)                                        # Node.js version
   set PYTHONp (_python_version)                                      # Python version
   set RUBYp   (_ruby_version)                                        # Ruby prompt @ gemset
   echo -n -s "$NODEp$PYTHONp$RUBYp"      # show global/local  versions in a git folder or local elsewhere
   echo -n -s (_prompt_user)              # display user@host if different from default or SSH
+end
+
+function _set_theme_es_vars -d 'Set default values to theme variables unless already set in user config'
+  # Global variables that affect how left and right prompts look like
+  test -z "$theme_es_show_symbols";      and set -g theme_es_show_symbols      'yes'
+  test -z "$theme_es_verbose_git_ahead"; and set -g theme_es_verbose_git_ahead 'yes'
+  test -z "$theme_es_show_git_sha";      and set -g theme_es_show_git_sha      'short'  # long
+  test -z "$theme_es_show_user";         and set -g theme_es_show_user         'no'     # yes
+  test -z "$theme_es_show_hostname";     and set -g theme_es_show_hostname     'yes'
+  test -z "$theme_es_notify_duration";   and set -g theme_es_notify_duration   10000
 end
 
 function _cmd_duration -d 'Displays the elapsed time of last command and show notification for long lasting commands'
@@ -67,11 +72,10 @@ function _cmd_duration -d 'Displays the elapsed time of last command and show no
     else
       echo -n (_col brgreen)$duration(_col_res)
     end
-    # OS X notification when a command takes longer than notify_duration and iTerm is not focused
-    set notify_duration 10000
+    # OS X notification when a command takes longer than theme_es_notify_duration and iTerm is not focused
     set exclude_cmd "bash|less|man|more|ssh"
     if begin
-      test $CMD_DURATION -gt $notify_duration
+      test $CMD_DURATION -gt $theme_es_notify_duration
       and echo $history[1] | grep -vqE "^($exclude_cmd).*"
     end
     set -l osname (uname)
@@ -122,7 +126,7 @@ function _file_count
 end
 
 function _prompt_user -d "Display current user if different from $default_user"
-  if [ "$theme_es_display_user" = "yes" ]
+  if [ "$theme_es_show_user" = "yes" ]
     if [ "$USER" != "$default_user" -o -n "$SSH_CLIENT" ]
       set USER (whoami)
       get_hostname
@@ -142,7 +146,7 @@ function _prompt_user -d "Display current user if different from $default_user"
 end
 function get_hostname -d "Set current hostname to prompt variable $HOSTNAME_PROMPT if connected via SSH"
   set -g HOSTNAME_PROMPT ""
-  if [ "$theme_es_hide_hostname" != "yes" -a -n "$SSH_CLIENT" ]
+  if [ "$theme_es_show_hostname" = "yes" -a -n "$SSH_CLIENT" ]
     set -g HOSTNAME_PROMPT (hostname)
   end
 end
@@ -221,7 +225,7 @@ function _is_git_folder     -d "Check if current folder is a git folder"
   git status 1>/dev/null 2>/dev/null
 end
 function _git_ahead -d         'Print the ahead/behind state for the current branch'
-  if [ "$theme_es_display_git_ahead_verbose" = 'yes' ]
+  if [ "$theme_es_verbose_git_ahead" = 'yes' ]
     _git_ahead_verbose
     return
   end
@@ -246,13 +250,17 @@ function _git_ahead_verbose -d 'Print a more verbose ahead/behind state for the 
       echo (_col blue)"$ICON_ARROW_UP$ahead"(_col red)"$ICON_ARROW_DOWN$behind"
   end
 end
-function _git_prompt_short_sha
-  set -l SHA (command git rev-parse --short HEAD 2> /dev/null)
-  test $SHA; and echo -n -s (_col brcyan)\[(_col brgrey)$SHA(_col brcyan)\](_col_res)
-end
-function _git_prompt_long_sha
-  set -l SHA (command git rev-parse HEAD 2> /dev/null)
-  test $SHA; and echo -n -s (_col brcyan)\[(_col brgrey)$SHA(_col brcyan)\](_col_res)
+
+function _git_prompt_sha
+  set -l GIT_SHA
+  if [ "$theme_es_show_git_sha" = 'short' ]
+    set GIT_SHA (command git rev-parse --short HEAD 2> /dev/null)
+  else if [ "$theme_es_show_git_sha" = 'long' ]
+    set GIT_SHA (command git rev-parse HEAD 2> /dev/null)
+  else
+    set GIT_SHA ""
+  end
+  test $GIT_SHA; and echo -n -s (_col brcyan)\[(_col brgrey)$GIT_SHA(_col brcyan)\](_col_res)
 end
 
 function _node_version -d "Print Node version via NVM/nodenv: local/global in a git folder, only local elsewhere"
@@ -359,6 +367,7 @@ end
 set -g CMD_DURATION 0
 
 #Additional info
+  # Shorten path in git folders to one instead of two (otherwise too little space is left with all the extra info)
   # ^&1 stderr2stdout, >&2 vice versa, '>' or '1>' stdout, '2>' stderr
   # set -l time (date '+%I:%M'); #set -l time_info (_col blue)($time)(_col_res); #echo -n -s $time_info
 
