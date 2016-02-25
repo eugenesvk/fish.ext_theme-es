@@ -281,7 +281,7 @@ function _is_node_local -d "Check if local Node version is set via .node-version
   end
 end
 
-function _ruby_version -d "Print Ruby version via RVM/rbenv: local/global in a git folder, only local elsewhere"
+function _ruby_version -d "Print Ruby version via RVM/rbenv: local/global in a git folder, only local elsewhere. Also displays Ruby@gemset version if a gemset is set locally"
   set -l ruby_ver
   if which rvm-prompt >/dev/null ^&1
     set ruby_ver (rvm-prompt i v g)
@@ -289,7 +289,7 @@ function _ruby_version -d "Print Ruby version via RVM/rbenv: local/global in a g
   if which rbenv >/dev/null ^&1   # overwrites RVM version if rbenv is installed
     set ruby_ver (rbenv version-name)
   end
-  if begin _is_git_folder; or _is_ruby_local; end
+  if begin _is_git_folder; or _is_ruby_local; or _is_gemset_local; end
     if test -n (_rbenv_gemset 2>/dev/null; or echo "")
       test $ruby_ver; and echo -n -s (_col brred)$ICON_RUBY(_col green)$ruby_ver(_col grey)"@"(_col brgrey)(_rbenv_gemset)(_col_res)
     else
@@ -312,6 +312,11 @@ end
 function _is_ruby_local -d "Check if local ruby version is set via .ruby-version (current/parent folders)"
   if type -q rbenv
     rbenv version | grep '.ruby-version' >/dev/null
+  end
+end
+function _is_gemset_local -d "Check if local gemset version is set via .rbenv-gemsets (current/parent folders)"
+  if type -q rbenv
+    rbenv gemset file | grep '.rbenv-gemsets' >/dev/null
   end
 end
 
