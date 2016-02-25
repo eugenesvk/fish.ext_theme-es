@@ -1,5 +1,3 @@
-# Powerline-patched fonts are required
-
 # Global variables that affect how left and right prompts look like
 set -g symbols_style                   'symbols'
 set -g theme_display_git_ahead_verbose  yes
@@ -13,8 +11,8 @@ function fish_prompt
   set -l p_path2 (_col brblue o u)(prompt_pwd2)(_col_res)            #path shortened to last two folders ($count)
   set -l symbols ''                                                  #add some pre-path symbols
   if [ $symbols_style = 'symbols' ]
-    if [ ! -w . ];    set symbols $symbols(_col ff6600);           end
-    if set -q -x VIM; set symbols $symbols(_col 3300ff o)$ICON_VIM; end
+    if [ ! -w . ];    set symbols $symbols(_col ff6600)$ICON_LOCK; end    #
+    if set -q -x VIM; set symbols $symbols(_col 3300ff o)$ICON_VIM; end   #
   end
   if [ (_is_git_dirty) ]; set dirty ''; else; set dirty ' '; end     #add space only in clean git branches
   if test $last_status = 0                                           #prompt symbol green normal, red on error
@@ -33,7 +31,7 @@ function fish_right_prompt
     set errorp (_col brred)"$last_status⏎"(_col_res)" "
   end
   set -l duration (_cmd_duration)                                    #set duration of last command
-  if [ (jobs -l | wc -l) -gt 0 ]                                     #set ⚙ if any background jobs exit
+  if [ (jobs -l | wc -l) -gt 0 ]                                     #set ⚙ if any background jobs exist
     set jobsp $ICON_JOBS
   end
   echo -n -s "$errorp$duration$jobsp"                                #show error code, command duration and jobs status
@@ -282,7 +280,7 @@ function _ruby_version -d "Print Ruby version via RVM/rbenv: local/global in a g
 end
 function _rbenv_gemset -d "Get main current gemset name"
   if type -q rbenv
-    if test (rbenv gemset active 2>/dev/null)                           #redirects stderr to /null
+    if test (rbenv gemset active 2>/dev/null)             #redirects stderr to /null. Or >/dev/null ^&1?
       set -l active_gemset (string split -m1 " " (rbenv gemset active))
       echo -n -s $active_gemset[1]
     else
@@ -344,70 +342,46 @@ function _icons_initialize
   set -g ICON_STAR                  \UF02A        # 
   set -g ICON_JOBS                  \U2699" "     # ⚙
   set -g ICON_VIM                   \UE7C5" "     # 
+  set -g ICON_LOCK                  \UE0A2        # 
 end
 
 set -g CMD_DURATION 0
 
 #Additional info
   # ^&1 stderr2stdout, >&2 vice versa, '>' or '1>' stdout, '2>' stderr
-  #set -l time (date '+%I:%M'); #set -l time_info (_col blue)($time)(_col_res); #echo -n -s $time_info
-  #function print_blank_line() {
-  #    if git rev-parse --git-dir > /dev/null 2>&1
-  #     echo -e "n"
-  #    else
-  #     echo -n "b"
-  #    end
-  #end
-  # use this to enable users to see their ruby version, no matter which version management system they use
-  #function ruby_prompt_info
-  #  echo $(rvm_prompt_info || rbenv_prompt_info || chruby_prompt_info)
-  #end
+  # set -l time (date '+%I:%M'); #set -l time_info (_col blue)($time)(_col_res); #echo -n -s $time_info
 
-  #bash
+  # Run command in background: command &
+  # 0 is stdin. 1 is stdout. 2 is stderr.
+  # Redirect STDERR to STDOUT: command 2>&1
+  # One method of combining multiple commands is to use a -e before each command
+  # sed -e 's/a/A/' -e 's/b/B/' <old >new
+  # :label
+  # ' to turn quoting on/off, so '$ is
+  # g get; p print; N next
+  # head -n1         #print 1 line of a file to stdout
+  # end
+
+  # If $VAR is not set, then `test -n $VAR` is equivalent to `test -n`, and POSIX requires that we just  check if that one argument (the -n) is not null
+  # 1. if test -n "$SSH_CLIENT" # You can fix it by quoting, which forces an argument even if it's empty:
+  # 2. test -n (EXPRESSION; or echo "")
+  # 3. use count
+
+  # echo "Python 3.5.0" | cut -d ' ' -f 2 2>/dev/null        #-d use DELIM instead of tabs, -f print line without delims
+
+  # function print_blank_line() {
+  #     if git rev-parse --git-dir > /dev/null 2>&1
+  #      echo -e "n"
+  #     else
+  #      echo -n "b"
+  #     end
+  # end
+  #  use this to enable users to see their ruby version, no matter which version management system they use
+  # function ruby_prompt_info
+  #   echo $(rvm_prompt_info || rbenv_prompt_info || chruby_prompt_info)
+  # end
+
+  # bash
   # echo "$(rbenv gemset active 2&>/dev/null | sed -e ":a" -e '$ s/\n/+/gp;N;b a' | head -n1)"
   # fenv echo "\$(rbenv gemset active 2\&>/dev/null | sed -e ":a" -e '\$ s/\n/+/gp;N;b a' | head -n1)"
   # bass echo "\$(rbenv gemset active 2\&>/dev/null | sed -e ":a" -e '\$ s/\n/+/gp;N;b a' | head -n1)"
-  #Run command in background: command &
-  #0 is stdin. 1 is stdout. 2 is stderr.
-  #Redirect STDERR to STDOUT: command 2>&1
-  #One method of combining multiple commands is to use a -e before each command
-  #sed -e 's/a/A/' -e 's/b/B/' <old >new
-  #:label
-  #' to turn quoting on/off, so '$ is
-  #g get; p print; N next
-  #head -n1         #print 1 line of a file to stdout
-  #end
-
-  #current_gemset alternativ
-  #  else if test (rbenv gemset active >/dev/null ^&1) = "no active gemsets" # not sure what ^&1
-  #  else
-  #    set -l active_gemset (string split -m1 " " (rbenv gemset active))
-  #    echo $active_gemset[1]
-  #
-  #  set -l active_gemset (rbenv gemset active ^/dev/null)
-  #  if test -z "$active_gemset"
-  #  else if test $active_gemset = "no active gemsets"
-  #    else
-  #      set -l active_gemset (string split -m1 " " $active_gemset)
-  #      echo $active_gemset[1]
-  #  end
-  # echo (rbenv gemset active 2&>/dev/null | sed -e ":a" -e '$ s/\n/+/gp;N;b a' | head -n1)
-  # if [ ]
-
-  #The short summary is that if $VAR is not set, then test -n $VAR is equivalent to test -n, and POSIX requires that we just  check if that one argument (the -n) is not null.
-  #1. if test -n "$SSH_CLIENT" # You can fix it by quoting, which forces an argument even if it's empty:
-  #2. test -n (EXPRESSION; or echo "")
-  #3. use count
-
-
-
-#function __bobthefish_prompt_user -d 'Display actual user if different from $default_user'
-#  if [ "$theme_display_user" = 'yes' ]
-#    if [ "$USER" != "$default_user" -o -n "$SSH_CLIENT" ]
-#      __bobthefish_start_segment $__bobthefish_lt_grey $__bobthefish_slate_blue
-#      echo -n -s (whoami) '@' (hostname | cut -d . -f 1) ' '
-#    end
-#  end
-#end
-
-#echo "Python 3.5.0" | cut -d ' ' -f 2 2>/dev/null        #-d use DELIM instead of tabs, -f print line without delims
