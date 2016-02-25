@@ -1,8 +1,8 @@
 # Global variables that affect how left and right prompts look like
-set -g symbols_style                   'symbols'
-set -g theme_display_git_ahead_verbose  yes
-set -g theme_hide_hostname              no
-set -g theme_display_user               no
+set -g theme_es_symbols_style              'symbols'
+set -g theme_es_display_git_ahead_verbose  yes
+set -g theme_es_hide_hostname              no
+set -g theme_es_display_user               no
 
 function fish_prompt
   set -g last_status $status                                         #exit status of last command
@@ -10,7 +10,7 @@ function fish_prompt
   _icons_initialize
   set -l p_path2 (_col brblue o u)(prompt_pwd2)(_col_res)            #path shortened to last two folders ($count)
   set -l symbols ''                                                  #add some pre-path symbols
-  if [ $symbols_style = 'symbols' ]
+  if [ $theme_es_symbols_style = 'symbols' ]
     if [ ! -w . ];    set symbols $symbols(_col ff6600)$ICON_LOCK; end    #
     if set -q -x VIM; set symbols $symbols(_col 3300ff o)$ICON_VIM; end   #
   end
@@ -30,21 +30,21 @@ function fish_right_prompt
   if test $last_status -gt 0                                         #set error code in red
     set errorp (_col brred)"$last_status⏎"(_col_res)" "
   end
-  set -l duration (_cmd_duration)                                    #set duration of last command
-  if [ (jobs -l | wc -l) -gt 0 ]                                     #set ⚙ if any background jobs exist
+  set -l duration (_cmd_duration)                                    # set duration of last command
+  if [ (jobs -l | wc -l) -gt 0 ]                                     # set ⚙ if any background jobs exist
     set jobsp $ICON_JOBS
   end
-  echo -n -s "$errorp$duration$jobsp"                                #show error code, command duration and jobs status
-  if _is_git_folder                                                  #show git sha and  in a git folder
+  echo -n -s "$errorp$duration$jobsp"                                # show error code, command duration and jobs status
+  if _is_git_folder                                                  # show git sha and  in a git folder
   #command git rev-parse --is-inside-work-tree 1>/dev/null 2>/dev/null
-    set git_sha (_git_prompt_short_sha)                              #git short sha
-    set NODEp   (_node_version)                                      #Node.js version
-    echo -n -s "$git_sha$NODEp"                                      # -n no newline -s no space separation
+    set git_sha (_git_prompt_short_sha)                              # git short sha
+    echo -n -s "$git_sha"                                            # -n no newline -s no space separation
   end
-  set PYTHONp (_python_version)                                      #Python version
-  set RUBYp   (_ruby_version)                                        #Ruby prompt @ gemset
-  echo -n -s "$PYTHONp$RUBYp"      #show global  versions in a git folder or local anywhere
-  echo -n -s (_prompt_user)        #display user@host if different from default or SSH
+  set NODEp   (_node_version)                                        # Node.js version
+  set PYTHONp (_python_version)                                      # Python version
+  set RUBYp   (_ruby_version)                                        # Ruby prompt @ gemset
+  echo -n -s "$NODEp$PYTHONp$RUBYp"      # show global/local  versions in a git folder or local elsewhere
+  echo -n -s (_prompt_user)              # display user@host if different from default or SSH
 end
 
 function _cmd_duration -d 'Displays the elapsed time of last command and show notification for long lasting commands'
@@ -122,7 +122,7 @@ function _file_count
 end
 
 function _prompt_user -d "Display current user if different from $default_user"
-  if [ "$theme_display_user" = "yes" ]
+  if [ "$theme_es_display_user" = "yes" ]
     if [ "$USER" != "$default_user" -o -n "$SSH_CLIENT" ]
       set USER (whoami)
       get_hostname
@@ -142,7 +142,7 @@ function _prompt_user -d "Display current user if different from $default_user"
 end
 function get_hostname -d "Set current hostname to prompt variable $HOSTNAME_PROMPT if connected via SSH"
   set -g HOSTNAME_PROMPT ""
-  if [ "$theme_hide_hostname" != "yes" -a -n "$SSH_CLIENT" ]
+  if [ "$theme_es_hide_hostname" != "yes" -a -n "$SSH_CLIENT" ]
     set -g HOSTNAME_PROMPT (hostname)
   end
 end
@@ -221,7 +221,7 @@ function _is_git_folder     -d "Check if current folder is a git folder"
   git status 1>/dev/null 2>/dev/null
 end
 function _git_ahead -d         'Print the ahead/behind state for the current branch'
-  if [ "$theme_display_git_ahead_verbose" = 'yes' ]
+  if [ "$theme_es_display_git_ahead_verbose" = 'yes' ]
     _git_ahead_verbose
     return
   end
@@ -255,20 +255,31 @@ function _git_prompt_long_sha
   test $SHA; and echo -n -s (_col brcyan)\[(_col brgrey)$SHA(_col brcyan)\](_col_res)
 end
 
-function _node_version -d "Get the currently used node version if NVM exists"
+function _node_version -d "Print Node version via NVM/nodenv: local/global in a git folder, only local elsewhere"
   set -l node_version
-  type -q nvm; and set node_version (string trim -l -c=v (node -v 2>/dev/null)) # trimmed left 'v'; can use 'nvm current', but slower
-  test $node_version; and echo -n -s (_col brgreen)$ICON_NODE(_col green)$node_version(_col_res)
+  if type -q nvm
+    set node_version (string trim -l -c=v (node -v 2>/dev/null))  # trimmed left 'v'; can use 'nvm current', but slower
+  end
+  if type -q nodenv     # overwrites NVM version if nodenv is installed
+    set node_version (nodenv version-name)
+  end
+  if begin _is_git_folder; or _is_node_local; end
+    test $node_version; and echo -n -s (_col brgreen)$ICON_NODE(_col green)$node_version(_col_res)
+  end
+end
+function _is_node_local -d "Check if local Node version is set via .node-version (current/parent folders)"
+  if type -q nodenv
+    nodenv version | grep '.node-version' >/dev/null
+  end
 end
 
 function _ruby_version -d "Print Ruby version via RVM/rbenv: local/global in a git folder, only local elsewhere"
   set -l ruby_ver
   if which rvm-prompt >/dev/null ^&1
     set ruby_ver (rvm-prompt i v g)
-  else
-    if which rbenv >/dev/null ^&1
-      set ruby_ver (rbenv version-name)
-    end
+  end
+  if which rbenv >/dev/null ^&1   # overwrites RVM version if rbenv is installed
+    set ruby_ver (rbenv version-name)
   end
   if begin _is_git_folder; or _is_ruby_local; end
     if test -n (_rbenv_gemset 2>/dev/null; or echo "")
