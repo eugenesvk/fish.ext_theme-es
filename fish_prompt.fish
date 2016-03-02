@@ -207,7 +207,8 @@ function _git_status -d 'Check git status'
   #echo -n $added\n$deleted\n$modified\n$renamed\n$unmerged\n$untracked
 end
 function _is_git_dirty -d 'Check if branch is dirty'
-  echo (command git status -s --ignore-submodules=dirty ^/dev/null)             #'-s' short format
+  echo (command git status --porcelain --ignore-submodules=dirty ^/dev/null)
+  #'--porcelain' similar to short, but won't be changed in future versions
 end
 function _git_branch -d "Display the current git state"
   set -l ref

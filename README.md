@@ -19,7 +19,7 @@ $ omf install es
 
 ## Features
 
-* Git-aware theme with detailed __Git status__ at the left prompt (added, removed, modified, renamed, unstaged, stashed)
+* Git-aware theme with detailed __Git status__ at the left prompt (added, removed, modified, renamed, unstaged, stashed) and sha at the right
 * __Node/Python/Ruby@gemset__ current version (local/global in a git folder, only local elsewhere) at the right prompt if respective virtual environment manager is installed (nodenv/NVM, pyenv, rbenv/RVM)
 * __Error status__ and __duration of last command__ at the right prompt
 * Mac-notifications on completion of long commands (10+&nbsp;seconds by default) if terminal (iTerm and Terminal) is out of focus
