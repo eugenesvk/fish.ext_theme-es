@@ -160,22 +160,17 @@ function _UserSymbol                                                #prompt symb
 end
 
 function _prompt_git -a current_dir -d 'Display the actual git state'
-  set -l dirty (command git diff --no-ext-diff --quiet --exit-code; or echo -n ' ')
-  set -l flag_fg (_col brgreen)
-  if [ "$dirty" -o "$staged" ]                                      # if either dirty or staged
-    set flag_fg (_col yellow)
-  else if [ "$stashed" ]
-    set flag_fg (_col brred)
-  end
+  # $flag_fg set in the _git_status function
   echo -n -s $flag_fg(_git_branch)(_git_status)(_col_res)           #add space if dirty to separate from icons "$dirty"
 end
 function _git_status -d 'Check git status'
   set -l git_status (command git status --porcelain ^/dev/null | cut -c 1-2)
   set -l ahead (_git_ahead); echo -n $ahead                                    #show # of commits ahead/behind
-  if [ (echo -sn $git_status\n | egrep -c "[ACDMT][ MT]|[ACMT]D") -gt 0 ]      #added
+  set -l staged; set -l stashed
+  if [ (echo -sn $git_status\n | egrep -c "[ACDMT][ MT]|[ACMT]D") -gt 0 ]      #added/staged
     echo -n (_col green)$ICON_VCS_STAGED
+    set added true
   end
-  #set -l staged  (command git diff --cached --no-ext-diff --quiet --exit-code; or echo -n '~')      #was '~'
   if [ (echo -sn $git_status\n | egrep -c "[ ACMRT]D") -gt 0 ]                  #deleted
     echo -n (_col red)$ICON_VCS_DELETED
   end
@@ -191,10 +186,19 @@ function _git_status -d 'Check git status'
   if [ (echo -sn $git_status\n | egrep -c "\?\?") -gt 0 ]                       #untracked (new) files
     echo -n (_col brcyan)$ICON_VCS_UNTRACKED
   end
-  if test (command git rev-parse --verify --quiet refs/stash >/dev/null)        #stashed (was '$')
+  if test (command git rev-parse --verify --quiet refs/stash ^/dev/null)        #stashed (was '$')
     echo -n (_col brred)$ICON_VCS_STASH
+    set stashed true
   end
 
+  #set -l dirty (command git diff --no-ext-diff --quiet --exit-code; or echo -n ' ')
+  set -l dirty (_is_git_dirty)
+  set -g flag_fg (_col brgreen)
+  if [ "$dirty" -o "$added" ]                                      # if either dirty or added
+    set flag_fg (_col yellow)
+  else if [ "$stashed" ]
+    set flag_fg (_col brred)
+  end
   #set -l untracked ''
   #set -l show_untracked (git config --bool bash.showUntrackedFiles)
   #if [ "$theme_display_git_untracked" != 'no' -a "$show_untracked" != 'false' ]
@@ -216,7 +220,7 @@ function _git_branch -d "Display the current git state"
     set ref (command git symbolic-ref HEAD 2>/dev/null)
     if [ $status -gt 0 ]
       set -l branch (command git show-ref --head -s --abbrev |head -n1 2>/dev/null)
-      set ref " $ICON_VCS_DETACHED_BRANCH$branch"
+      set ref "$ICON_VCS_DETACHED_BRANCH$branch"
     end
     set -l branch (echo $ref | sed  "s-refs/heads/--")
     echo " $ICON_VCS_BRANCH"(_col magenta)"$branch"(_col_res)
