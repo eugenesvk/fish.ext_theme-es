@@ -271,7 +271,9 @@ end
 function _node_version -d "Print Node version via NVM/nodenv: local/global in a git folder, only local elsewhere"
   set -l node_version
   if type -q nvm
-    set node_version (string trim -l -c=v (node -v 2>/dev/null))  # trimmed left 'v'; can use 'nvm current', but slower
+    if type -q node     # omf nvm wrapper caused previous check to pass even when no true NVM was installed
+      set node_version (string trim -l -c=v (node -v 2>/dev/null))  # trimmed left 'v'; can use 'nvm current', but slower
+    end
   end
   if type -q nodenv     # overwrites NVM version if nodenv is installed
     set node_version (nodenv version-name)
@@ -315,14 +317,10 @@ function _rbenv_gemset -d "Get main current gemset name"
   end
 end
 function _is_ruby_local -d "Check if local ruby version is set via .ruby-version (current/parent folders)"
-  if type -q rbenv
-    rbenv version | grep '.ruby-version' >/dev/null
-  end
+  if type -q rbenv; rbenv version | grep '.ruby-version' >/dev/null; end
 end
 function _is_gemset_local -d "Check if local gemset version is set via .rbenv-gemsets (current/parent folders)"
-  if type -q rbenv
-    rbenv gemset file | grep '.rbenv-gemsets' >/dev/null
-  end
+  if type -q rbenv; rbenv gemset file | grep '.rbenv-gemsets' >/dev/null; end
 end
 
 function _python_version -d "Print Python version via pyenv: local/global in a git folder, only local elsewhere"
@@ -332,7 +330,7 @@ function _python_version -d "Print Python version via pyenv: local/global in a g
   test $python_version; and echo -n -s (_col brblue)$ICON_PYTHON(_col green)$python_version(_col_res)
 end
 function _is_python_local -d "Check if local python version is set via .python-version (current/parent folders)"
-  pyenv version | grep '.python-version' >/dev/null
+  if type -q pyenv; pyenv version | grep '.python-version' >/dev/null; end
 end
 
 function _icons_initialize
