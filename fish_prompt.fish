@@ -2,10 +2,10 @@ function fish_prompt
   set -g last_status $status                                         #exit status of last command
   #set -l count (_file_count)
   _icons_initialize                                                  # assign icons from patched fonts to vars
-  _set_theme_es_vars                                                 # set theme vars if not set by user
+  _set_theme_vars                                                    # set theme vars if not set by user
   set -l p_path2 (_col brblue o u)(prompt_pwd2)(_col_res)            #path shortened to last two folders ($count)
   set -l symbols ''                                                  #add some pre-path symbols
-  if [ $theme_es_show_symbols = 'yes' ]
+  if [ $theme_show_symbols = 'yes' ]
     if [ ! -w . ];    set symbols $symbols(_col ff6600)$ICON_LOCK; end    #
     if set -q -x VIM; set symbols $symbols(_col 3300ff o)$ICON_VIM; end   #
   end
@@ -42,14 +42,14 @@ function fish_right_prompt
   echo -n -s (_prompt_user)              # display user@host if different from default or SSH
 end
 
-function _set_theme_es_vars -d 'Set default values to theme variables unless already set in user config'
+function _set_theme_vars -d 'Set default values to theme variables unless already set in user config'
   # Global variables that affect how left and right prompts look like
-  test -z "$theme_es_show_symbols";      and set -g theme_es_show_symbols      'yes'
-  test -z "$theme_es_verbose_git_ahead"; and set -g theme_es_verbose_git_ahead 'yes'
-  test -z "$theme_es_show_git_sha";      and set -g theme_es_show_git_sha      'short'  # long
-  test -z "$theme_es_show_user";         and set -g theme_es_show_user         'no'     # yes
-  test -z "$theme_es_show_hostname";     and set -g theme_es_show_hostname     'yes'
-  test -z "$theme_es_notify_duration";   and set -g theme_es_notify_duration   10000
+  test -z "$theme_show_symbols"     	; and set -g theme_show_symbols     	'yes'
+  test -z "$theme_verbose_git_ahead"	; and set -g theme_verbose_git_ahead	'yes'
+  test -z "$theme_show_git_sha"     	; and set -g theme_show_git_sha     	'short'  # long
+  test -z "$theme_show_user"        	; and set -g theme_show_user        	'no'     # yes
+  test -z "$theme_show_hostname"    	; and set -g theme_show_hostname    	'yes'
+  test -z "$theme_notify_duration"  	; and set -g theme_notify_duration  	10000
 end
 
 function _cmd_duration -d 'Displays the elapsed time of last command and show notification for long lasting commands'
@@ -72,10 +72,10 @@ function _cmd_duration -d 'Displays the elapsed time of last command and show no
     else
       echo -n (_col brgreen)$duration(_col_res)
     end
-    # OS X notification when a command takes longer than theme_es_notify_duration and iTerm is not focused
+    # OS X notification when a command takes longer than theme_notify_duration and iTerm is not focused
     set exclude_cmd "bash|less|man|more|ssh"
     if begin
-      test $CMD_DURATION -gt $theme_es_notify_duration
+      test "$CMD_DURATION" -gt "$theme_notify_duration"
       and echo $history[1] | grep -vqE "^($exclude_cmd).*"
     end
     set -l osname (uname)
@@ -126,7 +126,7 @@ function _file_count
 end
 
 function _prompt_user -d "Display current user if different from $default_user"
-  if [ "$theme_es_show_user" = "yes" ]
+  if [ "$theme_show_user" = "yes" ]
     if [ "$USER" != "$default_user" -o -n "$SSH_CLIENT" ]
       set USER (whoami)
       get_hostname
@@ -146,7 +146,7 @@ function _prompt_user -d "Display current user if different from $default_user"
 end
 function get_hostname -d "Set current hostname to prompt variable $HOSTNAME_PROMPT if connected via SSH"
   set -g HOSTNAME_PROMPT ""
-  if [ "$theme_es_show_hostname" = "yes" -a -n "$SSH_CLIENT" ]
+  if [ "$theme_show_hostname" = "yes" -a -n "$SSH_CLIENT" ]
     set -g HOSTNAME_PROMPT (hostname)
   end
 end
@@ -230,7 +230,7 @@ function _is_git_folder     -d "Check if current folder is a git folder"
   git status 1>/dev/null 2>/dev/null
 end
 function _git_ahead -d         'Print the ahead/behind state for the current branch'
-  if [ "$theme_es_verbose_git_ahead" = 'yes' ]
+  if [ "$theme_verbose_git_ahead" = 'yes' ]
     _git_ahead_verbose
     return
   end
@@ -258,9 +258,9 @@ end
 
 function _git_prompt_sha
   set -l GIT_SHA
-  if [ "$theme_es_show_git_sha" = 'short' ]
+  if [ "$theme_show_git_sha" = 'short' ]
     set GIT_SHA (command git rev-parse --short HEAD 2> /dev/null)
-  else if [ "$theme_es_show_git_sha" = 'long' ]
+  else if [ "$theme_show_git_sha" = 'long' ]
     set GIT_SHA (command git rev-parse HEAD 2> /dev/null)
   else
     set GIT_SHA ""
