@@ -1,13 +1,20 @@
+# Powerline-patched fonts are required
+
+# Global variables that affect how left and right prompts look like
+set -g symbols_style                   'symbols'
+set -g theme_display_git_ahead_verbose  yes
+set -g theme_hide_hostname              no
+set -g theme_display_user               no
+
 function fish_prompt
   set -g last_status $status                                         #exit status of last command
   #set -l count (_file_count)
-  _icons_initialize                                                  # assign icons from patched fonts to vars
-  _set_theme_es_vars                                                 # set theme vars if not set by user
+  _icons_initialize
   set -l p_path2 (_col brblue o u)(prompt_pwd2)(_col_res)            #path shortened to last two folders ($count)
   set -l symbols ''                                                  #add some pre-path symbols
-  if [ $theme_es_show_symbols = 'yes' ]
-    if [ ! -w . ];    set symbols $symbols(_col ff6600)$ICON_LOCK; end    #
-    if set -q -x VIM; set symbols $symbols(_col 3300ff o)$ICON_VIM; end   #
+  if [ $symbols_style = 'symbols' ]
+    if [ ! -w . ];    set symbols $symbols(_col ff6600);           end
+    if set -q -x VIM; set symbols $symbols(_col 3300ff o)$ICON_VIM; end
   end
   if [ (_is_git_dirty) ]; set dirty ''; else; set dirty ' '; end     #add space only in clean git branches
   if test $last_status = 0                                           #prompt symbol green normal, red on error
@@ -25,31 +32,20 @@ function fish_right_prompt
   if test $last_status -gt 0                                         #set error code in red
     set errorp (_col brred)"$last_status⏎"(_col_res)" "
   end
-  set -l duration (_cmd_duration)                                    # set duration of last command
-  if [ (jobs -l | wc -l) -gt 0 ]                                     # set ⚙ if any background jobs exist
+  set -l duration (_cmd_duration)                                    #set duration of last command
+  if [ (jobs -l | wc -l) -gt 0 ]                                     #set ⚙ if any background jobs exit
     set jobsp $ICON_JOBS
   end
-  echo -n -s "$errorp$duration$jobsp"                                # show error code, command duration and jobs status
-  if _is_git_folder                                                  # show git sha and  in a git folder
+  echo -n -s "$errorp$duration$jobsp"                                #show error code, command duration and jobs status
+  if _is_git_folder                                                  #show  only if in a git folder
   #command git rev-parse --is-inside-work-tree 1>/dev/null 2>/dev/null
-    set git_SHAp (_git_prompt_sha)                                    # git long/short sha depending on config
-    echo -n -s "$git_SHAp"                                            # -n no newline -s no space separation
+    set git_sha (_git_prompt_short_sha)                              #git short sha
+    set NODEp   (_node_version)                                      #Node.js version
+    set PYTHONp (_python_version)                                    #Python version
+    set RUBYp   (_ruby_version)                                      #Ruby prompt @ gemset
+    echo -n -s "$git_sha$NODEp$PYTHONp$RUBYp"                        # -n no newline -s no space separation
   end
-  set NODEp   (_node_version)                                        # Node.js version
-  set PYTHONp (_python_version)                                      # Python version
-  set RUBYp   (_ruby_version)                                        # Ruby prompt @ gemset
-  echo -n -s "$NODEp$PYTHONp$RUBYp"      # show global/local  versions in a git folder or local elsewhere
-  echo -n -s (_prompt_user)              # display user@host if different from default or SSH
-end
-
-function _set_theme_es_vars -d 'Set default values to theme variables unless already set in user config'
-  # Global variables that affect how left and right prompts look like
-  test -z "$theme_es_show_symbols";      and set -g theme_es_show_symbols      'yes'
-  test -z "$theme_es_verbose_git_ahead"; and set -g theme_es_verbose_git_ahead 'yes'
-  test -z "$theme_es_show_git_sha";      and set -g theme_es_show_git_sha      'short'  # long
-  test -z "$theme_es_show_user";         and set -g theme_es_show_user         'no'     # yes
-  test -z "$theme_es_show_hostname";     and set -g theme_es_show_hostname     'yes'
-  test -z "$theme_es_notify_duration";   and set -g theme_es_notify_duration   10000
+  echo -n -s (_prompt_user)                                          #display user@host if different from default or SSH
 end
 
 function _cmd_duration -d 'Displays the elapsed time of last command and show notification for long lasting commands'
@@ -72,10 +68,11 @@ function _cmd_duration -d 'Displays the elapsed time of last command and show no
     else
       echo -n (_col brgreen)$duration(_col_res)
     end
-    # OS X notification when a command takes longer than theme_es_notify_duration and iTerm is not focused
+    # OS X notification when a command takes longer than notify_duration and iTerm is not focused
+    set notify_duration 10000
     set exclude_cmd "bash|less|man|more|ssh"
     if begin
-      test $CMD_DURATION -gt $theme_es_notify_duration
+      test $CMD_DURATION -gt $notify_duration
       and echo $history[1] | grep -vqE "^($exclude_cmd).*"
     end
     set -l osname (uname)
@@ -92,6 +89,11 @@ function _cmd_duration -d 'Displays the elapsed time of last command and show no
     end
     end
   end
+end
+
+function available -a name -d "Check if a function or program is available."
+  #-a NAMES assigns the value of successive command-line arguments to the names given in NAMES
+  type "$name" ^/dev/null >&2
 end
 
 function _col                                     #Set Color 'name b u' bold, underline
@@ -126,7 +128,7 @@ function _file_count
 end
 
 function _prompt_user -d "Display current user if different from $default_user"
-  if [ "$theme_es_show_user" = "yes" ]
+  if [ "$theme_display_user" = "yes" ]
     if [ "$USER" != "$default_user" -o -n "$SSH_CLIENT" ]
       set USER (whoami)
       get_hostname
@@ -146,7 +148,7 @@ function _prompt_user -d "Display current user if different from $default_user"
 end
 function get_hostname -d "Set current hostname to prompt variable $HOSTNAME_PROMPT if connected via SSH"
   set -g HOSTNAME_PROMPT ""
-  if [ "$theme_es_show_hostname" = "yes" -a -n "$SSH_CLIENT" ]
+  if [ "$theme_hide_hostname" != "yes" -a -n "$SSH_CLIENT" ]
     set -g HOSTNAME_PROMPT (hostname)
   end
 end
@@ -160,17 +162,22 @@ function _UserSymbol                                                #prompt symb
 end
 
 function _prompt_git -a current_dir -d 'Display the actual git state'
-  # $flag_fg set in the _git_status function
+  set -l dirty (command git diff --no-ext-diff --quiet --exit-code; or echo -n ' ')
+  set -l flag_fg (_col brgreen)
+  if [ "$dirty" -o "$staged" ]                                      # if either dirty or staged
+    set flag_fg (_col yellow)
+  else if [ "$stashed" ]
+    set flag_fg (_col brred)
+  end
   echo -n -s $flag_fg(_git_branch)(_git_status)(_col_res)           #add space if dirty to separate from icons "$dirty"
 end
 function _git_status -d 'Check git status'
   set -l git_status (command git status --porcelain ^/dev/null | cut -c 1-2)
   set -l ahead (_git_ahead); echo -n $ahead                                    #show # of commits ahead/behind
-  set -l staged; set -l stashed
-  if [ (echo -sn $git_status\n | egrep -c "[ACDMT][ MT]|[ACMT]D") -gt 0 ]      #added/staged
+  if [ (echo -sn $git_status\n | egrep -c "[ACDMT][ MT]|[ACMT]D") -gt 0 ]      #added
     echo -n (_col green)$ICON_VCS_STAGED
-    set added true
   end
+  #set -l staged  (command git diff --cached --no-ext-diff --quiet --exit-code; or echo -n '~')      #was '~'
   if [ (echo -sn $git_status\n | egrep -c "[ ACMRT]D") -gt 0 ]                  #deleted
     echo -n (_col red)$ICON_VCS_DELETED
   end
@@ -186,19 +193,10 @@ function _git_status -d 'Check git status'
   if [ (echo -sn $git_status\n | egrep -c "\?\?") -gt 0 ]                       #untracked (new) files
     echo -n (_col brcyan)$ICON_VCS_UNTRACKED
   end
-  if test (command git rev-parse --verify --quiet refs/stash ^/dev/null)        #stashed (was '$')
+  if test (command git rev-parse --verify --quiet refs/stash >/dev/null)        #stashed (was '$')
     echo -n (_col brred)$ICON_VCS_STASH
-    set stashed true
   end
 
-  #set -l dirty (command git diff --no-ext-diff --quiet --exit-code; or echo -n ' ')
-  set -l dirty (_is_git_dirty)
-  set -g flag_fg (_col brgreen)
-  if [ "$dirty" -o "$added" ]                                      # if either dirty or added
-    set flag_fg (_col yellow)
-  else if [ "$stashed" ]
-    set flag_fg (_col brred)
-  end
   #set -l untracked ''
   #set -l show_untracked (git config --bool bash.showUntrackedFiles)
   #if [ "$theme_display_git_untracked" != 'no' -a "$show_untracked" != 'false' ]
@@ -211,8 +209,7 @@ function _git_status -d 'Check git status'
   #echo -n $added\n$deleted\n$modified\n$renamed\n$unmerged\n$untracked
 end
 function _is_git_dirty -d 'Check if branch is dirty'
-  echo (command git status --porcelain --ignore-submodules=dirty ^/dev/null)
-  #'--porcelain' similar to short, but won't be changed in future versions
+  echo (command git status -s --ignore-submodules=dirty ^/dev/null)             #'-s' short format
 end
 function _git_branch -d "Display the current git state"
   set -l ref
@@ -220,7 +217,7 @@ function _git_branch -d "Display the current git state"
     set ref (command git symbolic-ref HEAD 2>/dev/null)
     if [ $status -gt 0 ]
       set -l branch (command git show-ref --head -s --abbrev |head -n1 2>/dev/null)
-      set ref "$ICON_VCS_DETACHED_BRANCH$branch"
+      set ref " $ICON_VCS_DETACHED_BRANCH$branch"
     end
     set -l branch (echo $ref | sed  "s-refs/heads/--")
     echo " $ICON_VCS_BRANCH"(_col magenta)"$branch"(_col_res)
@@ -230,7 +227,7 @@ function _is_git_folder     -d "Check if current folder is a git folder"
   git status 1>/dev/null 2>/dev/null
 end
 function _git_ahead -d         'Print the ahead/behind state for the current branch'
-  if [ "$theme_es_verbose_git_ahead" = 'yes' ]
+  if [ "$theme_display_git_ahead_verbose" = 'yes' ]
     _git_ahead_verbose
     return
   end
@@ -255,56 +252,40 @@ function _git_ahead_verbose -d 'Print a more verbose ahead/behind state for the 
       echo (_col blue)"$ICON_ARROW_UP$ahead"(_col red)"$ICON_ARROW_DOWN$behind"
   end
 end
-
-function _git_prompt_sha
-  set -l GIT_SHA
-  if [ "$theme_es_show_git_sha" = 'short' ]
-    set GIT_SHA (command git rev-parse --short HEAD 2> /dev/null)
-  else if [ "$theme_es_show_git_sha" = 'long' ]
-    set GIT_SHA (command git rev-parse HEAD 2> /dev/null)
-  else
-    set GIT_SHA ""
-  end
-  test $GIT_SHA; and echo -n -s (_col brcyan)\[(_col brgrey)$GIT_SHA(_col brcyan)\](_col_res)
+function _git_prompt_short_sha
+  set -l SHA (command git rev-parse --short HEAD 2> /dev/null)
+  test $SHA; and echo -n -s (_col brcyan)\[(_col brgrey)$SHA(_col brcyan)\](_col_res)
+end
+function _git_prompt_long_sha
+  set -l SHA (command git rev-parse HEAD 2> /dev/null)
+  test $SHA; and echo -n -s (_col brcyan)\[(_col brgrey)$SHA(_col brcyan)\](_col_res)
 end
 
-function _node_version -d "Print Node version via NVM/nodenv: local/global in a git folder, only local elsewhere"
+function _node_version -d "Get the currently used node version if NVM exists"
   set -l node_version
-  if type -q nvm
-    set node_version (string trim -l -c=v (node -v 2>/dev/null))  # trimmed left 'v'; can use 'nvm current', but slower
-  end
-  if type -q nodenv     # overwrites NVM version if nodenv is installed
-    set node_version (nodenv version-name)
-  end
-  if begin _is_git_folder; or _is_node_local; end
-    test $node_version; and echo -n -s (_col brgreen)$ICON_NODE(_col green)$node_version(_col_res)
-  end
-end
-function _is_node_local -d "Check if local Node version is set via .node-version (current/parent folders)"
-  if type -q nodenv
-    nodenv version | grep '.node-version' >/dev/null
-  end
+  available nvm; and set node_version (string trim -l -c=v (node -v 2>/dev/null)) # trimmed lef 'v'; can use 'nvm current', but slower
+  test $node_version; and echo -n -s (_col brgreen)$ICON_NODE(_col green)$node_version(_col_res)
 end
 
-function _ruby_version -d "Print Ruby version via RVM/rbenv: local/global in a git folder, only local elsewhere. Also displays Ruby@gemset version if a gemset is set locally"
+function _ruby_version -d "Get RVM or rbenv version and output" #2>&1 stderr2stdout, >&2 vice versa, '>' stdout, '2>' stderr
   set -l ruby_ver
-  if which rvm-prompt >/dev/null ^&1
+  if which rvm-prompt >/dev/null 2>&1
     set ruby_ver (rvm-prompt i v g)
-  end
-  if which rbenv >/dev/null ^&1   # overwrites RVM version if rbenv is installed
-    set ruby_ver (rbenv version-name)
-  end
-  if begin _is_git_folder; or _is_ruby_local; or _is_gemset_local; end
-    if test -n (_rbenv_gemset 2>/dev/null; or echo "")
-      test $ruby_ver; and echo -n -s (_col brred)$ICON_RUBY(_col green)$ruby_ver(_col grey)"@"(_col brgrey)(_rbenv_gemset)(_col_res)
-    else
-      test $ruby_ver; and echo -n -s (_col brred)$ICON_RUBY(_col green)$ruby_ver(_col_res)
+  else
+    if which rbenv >/dev/null 2>&1
+      set ruby_ver (rbenv version-name)
     end
   end
+  if test -n (_rbenv_gemset 2>/dev/null; or echo "")
+    test $ruby_ver; and echo -n -s (_col brred)$ICON_RUBY(_col green)$ruby_ver(_col grey)"@"(_col brgrey)(_rbenv_gemset)(_col_res)
+  else
+    test $ruby_ver; and echo -n -s (_col brred)$ICON_RUBY(_col green)$ruby_ver(_col_res)
+  end
 end
+
 function _rbenv_gemset -d "Get main current gemset name"
-  if type -q rbenv
-    if test (rbenv gemset active 2>/dev/null)             #redirects stderr to /null. Or >/dev/null ^&1?
+  if available rbenv
+    if test (rbenv gemset active 2>/dev/null)                           #redirects stderr to /null
       set -l active_gemset (string split -m1 " " (rbenv gemset active))
       echo -n -s $active_gemset[1]
     else
@@ -314,25 +295,13 @@ function _rbenv_gemset -d "Get main current gemset name"
     echo ''
   end
 end
-function _is_ruby_local -d "Check if local ruby version is set via .ruby-version (current/parent folders)"
-  if type -q rbenv
-    rbenv version | grep '.ruby-version' >/dev/null
-  end
-end
-function _is_gemset_local -d "Check if local gemset version is set via .rbenv-gemsets (current/parent folders)"
-  if type -q rbenv
-    rbenv gemset file | grep '.rbenv-gemsets' >/dev/null
-  end
-end
 
-function _python_version -d "Print Python version via pyenv: local/global in a git folder, only local elsewhere"
+function _python_version -d "Get python version if pyenv is installed"
   set -l python_version
-  _is_git_folder; or _is_python_local; and type -q pyenv
-  and set python_version (pyenv version-name)
+  if which pyenv >/dev/null 2>&1
+    set python_version (pyenv version-name)
+  end
   test $python_version; and echo -n -s (_col brblue)$ICON_PYTHON(_col green)$python_version(_col_res)
-end
-function _is_python_local -d "Check if local python version is set via .python-version (current/parent folders)"
-  pyenv version | grep '.python-version' >/dev/null
 end
 
 function _icons_initialize
@@ -371,47 +340,69 @@ function _icons_initialize
   set -g ICON_STAR                  \UF02A        # 
   set -g ICON_JOBS                  \U2699" "     # ⚙
   set -g ICON_VIM                   \UE7C5" "     # 
-  set -g ICON_LOCK                  \UE0A2        # 
 end
 
 set -g CMD_DURATION 0
 
 #Additional info
-  # Shorten path in git folders to one instead of two (otherwise too little space is left with all the extra info)
-  # ^&1 stderr2stdout, >&2 vice versa, '>' or '1>' stdout, '2>' stderr
-  # set -l time (date '+%I:%M'); #set -l time_info (_col blue)($time)(_col_res); #echo -n -s $time_info
+  #set -l time (date '+%I:%M'); #set -l time_info (_col blue)($time)(_col_res); #echo -n -s $time_info
+  #function print_blank_line() {
+  #    if git rev-parse --git-dir > /dev/null 2>&1
+  #     echo -e "n"
+  #    else
+  #     echo -n "b"
+  #    end
+  #end
+  # use this to enable users to see their ruby version, no matter which version management system they use
+  #function ruby_prompt_info
+  #  echo $(rvm_prompt_info || rbenv_prompt_info || chruby_prompt_info)
+  #end
 
-  # Run command in background: command &
-  # 0 is stdin. 1 is stdout. 2 is stderr.
-  # Redirect STDERR to STDOUT: command 2>&1
-  # One method of combining multiple commands is to use a -e before each command
-  # sed -e 's/a/A/' -e 's/b/B/' <old >new
-  # :label
-  # ' to turn quoting on/off, so '$ is
-  # g get; p print; N next
-  # head -n1         #print 1 line of a file to stdout
-  # end
-
-  # If $VAR is not set, then `test -n $VAR` is equivalent to `test -n`, and POSIX requires that we just  check if that one argument (the -n) is not null
-  # 1. if test -n "$SSH_CLIENT" # You can fix it by quoting, which forces an argument even if it's empty:
-  # 2. test -n (EXPRESSION; or echo "")
-  # 3. use count
-
-  # echo "Python 3.5.0" | cut -d ' ' -f 2 2>/dev/null        #-d use DELIM instead of tabs, -f print line without delims
-
-  # function print_blank_line() {
-  #     if git rev-parse --git-dir > /dev/null 2>&1
-  #      echo -e "n"
-  #     else
-  #      echo -n "b"
-  #     end
-  # end
-  #  use this to enable users to see their ruby version, no matter which version management system they use
-  # function ruby_prompt_info
-  #   echo $(rvm_prompt_info || rbenv_prompt_info || chruby_prompt_info)
-  # end
-
-  # bash
+  #bash
   # echo "$(rbenv gemset active 2&>/dev/null | sed -e ":a" -e '$ s/\n/+/gp;N;b a' | head -n1)"
   # fenv echo "\$(rbenv gemset active 2\&>/dev/null | sed -e ":a" -e '\$ s/\n/+/gp;N;b a' | head -n1)"
   # bass echo "\$(rbenv gemset active 2\&>/dev/null | sed -e ":a" -e '\$ s/\n/+/gp;N;b a' | head -n1)"
+  #Run command in background: command &
+  #0 is stdin. 1 is stdout. 2 is stderr.
+  #Redirect STDERR to STDOUT: command 2>&1
+  #One method of combining multiple commands is to use a -e before each command
+  #sed -e 's/a/A/' -e 's/b/B/' <old >new
+  #:label
+  #' to turn quoting on/off, so '$ is
+  #g get; p print; N next
+  #head -n1         #print 1 line of a file to stdout
+  #end
+
+  #current_gemset alternativ
+  #  else if test (rbenv gemset active >/dev/null 2>&1) = "no active gemsets" # not sure what 2>&1
+  #  else
+  #    set -l active_gemset (string split -m1 " " (rbenv gemset active))
+  #    echo $active_gemset[1]
+  #
+  #  set -l active_gemset (rbenv gemset active ^/dev/null)
+  #  if test -z "$active_gemset"
+  #  else if test $active_gemset = "no active gemsets"
+  #    else
+  #      set -l active_gemset (string split -m1 " " $active_gemset)
+  #      echo $active_gemset[1]
+  #  end
+  # echo (rbenv gemset active 2&>/dev/null | sed -e ":a" -e '$ s/\n/+/gp;N;b a' | head -n1)
+  # if [ ]
+
+  #The short summary is that if $VAR is not set, then test -n $VAR is equivalent to test -n, and POSIX requires that we just  check if that one argument (the -n) is not null.
+  #1. if test -n "$SSH_CLIENT" # You can fix it by quoting, which forces an argument even if it's empty:
+  #2. test -n (EXPRESSION; or echo "")
+  #3. use count
+
+
+
+#function __bobthefish_prompt_user -d 'Display actual user if different from $default_user'
+#  if [ "$theme_display_user" = 'yes' ]
+#    if [ "$USER" != "$default_user" -o -n "$SSH_CLIENT" ]
+#      __bobthefish_start_segment $__bobthefish_lt_grey $__bobthefish_slate_blue
+#      echo -n -s (whoami) '@' (hostname | cut -d . -f 1) ' '
+#    end
+#  end
+#end
+
+#echo "Python 3.5.0" | cut -d ' ' -f 2 2>/dev/null        #-d use DELIM instead of tabs, -f print line without delims
