@@ -93,7 +93,7 @@ end
 
 function available -a name -d "Check if a function or program is available."
   #-a NAMES assigns the value of successive command-line arguments to the names given in NAMES
-  type "$name" ^/dev/null >&2
+  type "$name" 2>/dev/null >&2
 end
 
 function _col                                     #Set Color 'name b u' bold, underline
@@ -172,7 +172,7 @@ function _prompt_git -a current_dir -d 'Display the actual git state'
   echo -n -s $flag_fg(_git_branch)(_git_status)(_col_res)           #add space if dirty to separate from icons "$dirty"
 end
 function _git_status -d 'Check git status'
-  set -l git_status (command git status --porcelain ^/dev/null | cut -c 1-2)
+  set -l git_status (command git status --porcelain 2>/dev/null | cut -c 1-2)
   set -l ahead (_git_ahead); echo -n $ahead                                    #show # of commits ahead/behind
   if [ (echo -sn $git_status\n | egrep -c "[ACDMT][ MT]|[ACMT]D") -gt 0 ]      #added
     echo -n (_col green)$ICON_VCS_STAGED
@@ -209,7 +209,7 @@ function _git_status -d 'Check git status'
   #echo -n $added\n$deleted\n$modified\n$renamed\n$unmerged\n$untracked
 end
 function _is_git_dirty -d 'Check if branch is dirty'
-  echo (command git status -s --ignore-submodules=dirty ^/dev/null)             #'-s' short format
+  echo (command git status -s --ignore-submodules=dirty 2>/dev/null)             #'-s' short format
 end
 function _git_branch -d "Display the current git state"
   set -l ref
@@ -231,10 +231,10 @@ function _git_ahead -d         'Print the ahead/behind state for the current bra
     _git_ahead_verbose
     return
   end
-  command git rev-list --left-right '@{upstream}...HEAD' ^/dev/null | awk '/>/ {a += 1} /</ {b += 1} {if (a > 0 && b > 0) nextfile} END {if (a > 0 && b > 0) print "⇕"; else if (a > 0) print ""; else if (b > 0) print ""}' #↑↓⇕⬍↕
+  command git rev-list --left-right '@{upstream}...HEAD' 2>/dev/null | awk '/>/ {a += 1} /</ {b += 1} {if (a > 0 && b > 0) nextfile} END {if (a > 0 && b > 0) print "⇕"; else if (a > 0) print ""; else if (b > 0) print ""}' #↑↓⇕⬍↕
 end
 function _git_ahead_verbose -d 'Print a more verbose ahead/behind state for the current branch'
-  set -l commits (command git rev-list --left-right '@{upstream}...HEAD' ^/dev/null)
+  set -l commits (command git rev-list --left-right '@{upstream}...HEAD' 2>/dev/null)
   if [ $status != 0 ]
     return
   end
@@ -379,7 +379,7 @@ set -g CMD_DURATION 0
   #    set -l active_gemset (string split -m1 " " (rbenv gemset active))
   #    echo $active_gemset[1]
   #
-  #  set -l active_gemset (rbenv gemset active ^/dev/null)
+  #  set -l active_gemset (rbenv gemset active 2>/dev/null)
   #  if test -z "$active_gemset"
   #  else if test $active_gemset = "no active gemsets"
   #    else
